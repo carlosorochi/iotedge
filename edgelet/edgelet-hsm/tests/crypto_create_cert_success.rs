@@ -15,15 +15,16 @@ mod test_utils;
 use test_utils::TestHSMEnvSetup;
 
 lazy_static! {
-    static ref LOCK: Mutex<()> = Mutex::new(());
+    static ref ENV_LOCK: Mutex<()> = Mutex::new(());
+    static ref HSM_LOCK: Mutex<()> = Mutex::new(());
 }
 
 #[test]
 fn crypto_create_cert_success() {
     // arrange
-    let _setup_home_dir = TestHSMEnvSetup::new(&LOCK, None);
+    let _setup_home_dir = TestHSMEnvSetup::new(&ENV_LOCK, None);
 
-    let crypto = Crypto::new().unwrap();
+    let crypto = Crypto::new(&HSM_LOCK).unwrap();
 
     // create the default issuing CA cert properties
     let edgelet_ca_props = CertificateProperties::new(

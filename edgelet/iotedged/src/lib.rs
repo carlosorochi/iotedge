@@ -27,7 +27,7 @@ use std::fs;
 use std::fs::{DirBuilder, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use failure::{Fail, ResultExt};
 use futures::future::Either;
@@ -166,6 +166,8 @@ impl Main {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
+        let hsm_lock: Mutex<()> = Mutex::new(());
+
         let Main { settings } = self;
 
         let mut tokio_runtime = tokio::runtime::Runtime::new()
@@ -221,7 +223,7 @@ impl Main {
         info!("Finished configuring certificates.");
 
         info!("Initializing hsm...");
-        let crypto = Crypto::new().context(ErrorKind::Initialize(InitializeErrorReason::Hsm))?;
+        let crypto = Crypto::new(&hsm_lock).context(ErrorKind::Initialize(InitializeErrorReason::Hsm))?;
         info!("Finished initializing hsm.");
 
         // Detect if the settings were changed and if the device needs to be reconfigured

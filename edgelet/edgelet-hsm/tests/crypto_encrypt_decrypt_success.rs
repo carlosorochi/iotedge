@@ -12,16 +12,17 @@ mod test_utils;
 use test_utils::TestHSMEnvSetup;
 
 lazy_static! {
-    static ref LOCK: Mutex<()> = Mutex::new(());
+    static ref ENV_LOCK: Mutex<()> = Mutex::new(());
+    static ref HSM_LOCK: Mutex<()> = Mutex::new(());
 }
 
 /// Encrypt/Decrypt tests
 #[test]
 fn crypto_encrypt_decypt_success() {
     // arrange
-    let _setup_home_dir = TestHSMEnvSetup::new(&LOCK, None);
+    let _setup_home_dir = TestHSMEnvSetup::new(&ENV_LOCK, None);
 
-    let crypto = Crypto::new().unwrap();
+    let crypto = Crypto::new(&HSM_LOCK).unwrap();
 
     let client_id = b"module1";
     let plaintext = b"plaintext";
