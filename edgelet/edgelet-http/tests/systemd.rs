@@ -106,7 +106,7 @@ fn test_fd_ok() {
             };
             Ok::<_, io::Error>(service)
         },
-        None::<&CertificateManager<Crypto>>,
+        None::<&CertificateManager<Crypto<'_>>>,
     );
     if let Err(err) = run {
         unistd::close(fd).unwrap();
@@ -139,7 +139,7 @@ fn test_fd_err() {
             };
             Ok::<_, io::Error>(service)
         },
-        None::<&CertificateManager<Crypto>>,
+        None::<&CertificateManager<Crypto<'_>>>,
     );
 
     unistd::close(fd).unwrap();

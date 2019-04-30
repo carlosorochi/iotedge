@@ -29,7 +29,7 @@ pub use crate::error::{Error, ErrorKind};
 /// Activate a private key, and then you can use that key to sign data.
 #[derive(Clone)]
 pub struct Crypto<'a> {
-    crypto: Arc<HsmCrypto>,
+    crypto: Arc<Mutex<HsmCrypto>>,
     lock: &'a Mutex<()>,
 }
 
@@ -41,7 +41,8 @@ impl<'a> Crypto<'a> {
 
     pub fn from_hsm(crypto: HsmCrypto, m: &'a Mutex<()>) -> Result<Self, Error> {
         Ok(Crypto {
-            crypto: Arc::new(crypto),
+            crypto: Arc::new(Mutex::new(crypto)),
+            //crypto: Arc::new(crypto),
             lock: m
         })
     }
@@ -51,6 +52,8 @@ impl<'a> CoreMasterEncryptionKey for Crypto<'a> {
     fn create_key(&self) -> Result<(), CoreError> {
         let _d = self.lock.lock().expect("Lock on crypto structure failed");
         self.crypto
+            .lock()
+            .expect("Lock on crypto structure failed")
             .create_master_encryption_key()
             .map_err(|err| Error::from(err.context(ErrorKind::Hsm)))
             .map_err(|err| CoreError::from(err.context(CoreErrorKind::KeyStore)))
@@ -59,6 +62,8 @@ impl<'a> CoreMasterEncryptionKey for Crypto<'a> {
     fn destroy_key(&self) -> Result<(), CoreError> {
         let _d = self.lock.lock().expect("Lock on crypto structure failed");
         self.crypto
+            .lock()
+            .expect("Lock on crypto structure failed")
             .destroy_master_encryption_key()
             .map_err(|err| Error::from(err.context(ErrorKind::Hsm)))
             .map_err(|err| CoreError::from(err.context(CoreErrorKind::KeyStore)))
@@ -73,8 +78,9 @@ impl<'a> CoreCreateCertificate for Crypto<'a> {
         properties: &CoreCertificateProperties,
     ) -> Result<Self::Certificate, CoreError> {
         let _d = self.lock.lock().expect("Lock on crypto structure failed");
-        let device_ca_alias = self.crypto.get_device_ca_alias();
-        let cert = self.crypto
+        let crypto = self.crypto.lock().expect("Lock on crypto structure failed");
+        let device_ca_alias = crypto.get_device_ca_alias();
+        let cert = crypto
             .create_certificate(&convert_properties(properties, &device_ca_alias))
             .map_err(|err| Error::from(err.context(ErrorKind::Hsm)))
             .map_err(|err| CoreError::from(err.context(CoreErrorKind::KeyStore)))?;
@@ -84,6 +90,8 @@ impl<'a> CoreCreateCertificate for Crypto<'a> {
     fn destroy_certificate(&self, alias: String) -> Result<(), CoreError> {
         let _d = self.lock.lock().expect("Lock on crypto structure failed");
         self.crypto
+            .lock()
+            .expect("Lock on crypto structure failed")
             .destroy_certificate(alias)
             .map_err(|err| Error::from(err.context(ErrorKind::Hsm)))
             .map_err(|err| CoreError::from(err.context(CoreErrorKind::KeyStore)))?;
@@ -102,6 +110,8 @@ impl<'a> CoreEncrypt for Crypto<'a> {
     ) -> Result<Self::Buffer, CoreError> {
         let _d = self.lock.lock().expect("Lock on crypto structure failed");
         self.crypto
+            .lock()
+            .expect("Lock on crypto structure failed")
             .encrypt(client_id, plaintext, initialization_vector)
             .map_err(|err| Error::from(err.context(ErrorKind::Hsm)))
             .map_err(|err| CoreError::from(err.context(CoreErrorKind::KeyStore)))
@@ -119,6 +129,8 @@ impl<'a> CoreDecrypt for Crypto<'a> {
     ) -> Result<Self::Buffer, CoreError> {
         let _d = self.lock.lock().expect("Lock on crypto structure failed");
         self.crypto
+            .lock()
+            .expect("Lock on crypto structure failed")
             .decrypt(client_id, ciphertext, initialization_vector)
             .map_err(|err| Error::from(err.context(ErrorKind::Hsm)))
             .map_err(|err| CoreError::from(err.context(CoreErrorKind::KeyStore)))
@@ -132,6 +144,8 @@ impl<'a> CoreGetTrustBundle for Crypto<'a> {
         let _d = self.lock.lock().expect("Lock on crypto structure failed");
         let cert = self
             .crypto
+            .lock()
+            .expect("Lock on crypto structure failed")
             .get_trust_bundle()
             .map_err(|err| Error::from(err.context(ErrorKind::Hsm)))
             .map_err(|err| CoreError::from(err.context(CoreErrorKind::KeyStore)))?;

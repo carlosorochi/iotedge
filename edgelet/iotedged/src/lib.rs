@@ -36,6 +36,7 @@ use futures::{future, Future};
 use hyper::server::conn::Http;
 use hyper::Uri;
 use log::{debug, info};
+use lazy_static::lazy_static;
 use sha2::{Digest, Sha256};
 use url::Url;
 
@@ -157,6 +158,10 @@ pub struct Main {
     settings: Settings<DockerConfig>,
 }
 
+lazy_static! {
+    static ref HSM_LOCK: Mutex<()> = Mutex::new(());
+}
+
 impl Main {
     pub fn new(settings: Settings<DockerConfig>) -> Self {
         Main { settings }
@@ -166,8 +171,6 @@ impl Main {
     where
         F: Future<Item = (), Error = ()> + Send + 'static,
     {
-        let hsm_lock: Mutex<()> = Mutex::new(());
-
         let Main { settings } = self;
 
         let mut tokio_runtime = tokio::runtime::Runtime::new()
@@ -223,7 +226,7 @@ impl Main {
         info!("Finished configuring certificates.");
 
         info!("Initializing hsm...");
-        let crypto = Crypto::new(&hsm_lock).context(ErrorKind::Initialize(InitializeErrorReason::Hsm))?;
+        let crypto = Crypto::new(&HSM_LOCK).context(ErrorKind::Initialize(InitializeErrorReason::Hsm))?;
         info!("Finished initializing hsm.");
 
         // Detect if the settings were changed and if the device needs to be reconfigured

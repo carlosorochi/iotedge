@@ -8,12 +8,14 @@
 
 use std::env;
 use std::str;
+use std::sync::Mutex;
 
 use chrono::{Duration, Utc};
 use failure::Fail;
 use futures::{Future, Stream};
 use hyper::service::Service;
 use hyper::{Body, Request};
+use lazy_static::lazy_static;
 use native_tls::{Certificate as TlsCertificate, Identity};
 use openssl::pkcs12::Pkcs12;
 use openssl::pkey::PKey;
@@ -42,6 +44,10 @@ const MODULE_PID: i32 = 42;
 /// The HSM lib expects this variable to be set with home directory of the daemon.
 const HOMEDIR_KEY: &str = "IOTEDGE_HOMEDIR";
 const COMMON_NAME: &str = "staycalm";
+
+lazy_static! {
+    static ref HSM_LOCK: Mutex<()> = Mutex::new(());
+}
 
 #[derive(Clone, Copy, Debug, Fail)]
 pub enum Error {
@@ -81,8 +87,8 @@ impl WorkloadConfig for Config {
     }
 }
 
-fn init_crypto() -> Crypto {
-    let crypto = Crypto::new().unwrap();
+fn init_crypto<'a>(m: &'a Mutex<()>) -> Crypto<'a> {
+    let crypto = Crypto::new(&m).unwrap();
 
     // create the default issuing CA cert
     let edgelet_ca_props = CertificateProperties::new(
@@ -156,9 +162,9 @@ fn generate_server_cert(
     request(service, req)
 }
 
-fn create_workload_service(module_id: &str) -> (WorkloadService, Crypto) {
+fn create_workload_service(module_id: &str) -> (WorkloadService, Crypto<'static>) {
     let key_store = MemoryKeyStore::new();
-    let crypto = init_crypto();
+    let crypto = init_crypto(&HSM_LOCK);
     let runtime = TestRuntime::<Error>::new(Ok(TestModule::new(
         module_id.to_string(),
         TestConfig::new("img1".to_string()),
@@ -248,7 +254,7 @@ fn run_echo_client(
         .map_err(|err| panic!("TLS read error: {:#?}", err))
 }
 
-fn init_test(module_id: &str, generation_id: &str) -> (WorkloadService, Identity, TempDir, Crypto) {
+fn init_test(module_id: &str, generation_id: &str) -> (WorkloadService, Identity, TempDir, Crypto<'static>) {
     // setup the IOTEDGE_HOMEDIR folder where certs can be generated and stored
     let home_dir = TempDir::new().unwrap();
     env::set_var(HOMEDIR_KEY, &home_dir.path());
