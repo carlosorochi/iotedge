@@ -1,4 +1,4 @@
-ARG base_tag=2.1.10-runtime-nanoserver-1809
+ARG base_tag=2.1.10-nanoserver-1809
 FROM microsoft/dotnet:${base_tag}
 
 ARG EXE_DIR=.
